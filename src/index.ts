@@ -53,33 +53,27 @@ async function generateState() {
 
       await fs.mkdir(newStatePath)
 
-      const servicesPath = path.join(repoPath, 'services')
+      const appsPath = path.join(repoPath, 'src', 'apps')
 
-      if (!(await fs.exists(servicesPath))) {
-        throw new Error(`No services directory found in ${sourceRepo}`)
+      if (!(await fs.exists(appsPath))) {
+        throw new Error(`No src/apps directory found in ${sourceRepo}`)
       }
 
-      const serviceFiles = (await fs.readdir(servicesPath)).filter((filename) =>
+      const appFiles = (await fs.readdir(appsPath)).filter((filename) =>
         filename.endsWith('.ts'),
       )
 
       await Promise.all(
-        serviceFiles.map(async (filename) => {
-          const serviceId = filename.slice(0, -'.ts'.length)
+        appFiles.map(async (filename) => {
+          const appId = filename.slice(0, -'.ts'.length)
 
-          const service = await import(path.join(servicesPath, filename))
-          const state = await service.default()
+          const app = await import(path.join(appsPath, filename))
+          const state = await app.default()
 
-          const newServicePath = path.join(
-            newStatePath,
-            `${serviceId}-${repoId}`,
-          )
-          await fs.mkdir(newServicePath)
+          const newAppPath = path.join(newStatePath, `${appId}-${repoId}`)
+          await fs.mkdir(newAppPath)
 
-          const dockerComposePath = path.join(
-            newServicePath,
-            'docker-compose.yml',
-          )
+          const dockerComposePath = path.join(newAppPath, 'docker-compose.yml')
           await fs.writeFile(dockerComposePath, JSON.stringify(state))
         }),
       )
@@ -103,39 +97,37 @@ async function generateState() {
   }
 }
 
-async function teardownDeletedServices() {
+async function teardownDeletedApps() {
   const oldStateExists = await fs.exists(oldStatePath)
   if (!oldStateExists) {
     return
   }
 
-  const oldServices = await fs.readdir(oldStatePath)
+  const oldApps = await fs.readdir(oldStatePath)
 
-  // ignoring errors here, maybe some services have invalid yaml
+  // ignoring errors here, maybe some apps have invalid yaml
   await Promise.allSettled(
-    oldServices.map(async (serviceName) => {
-      const serviceStillExists = await fs.exists(
-        path.join(newStatePath, serviceName),
-      )
+    oldApps.map(async (appName) => {
+      const appStillExists = await fs.exists(path.join(newStatePath, appName))
 
-      if (!serviceStillExists) {
-        const oldServicePath = path.join(oldStatePath, serviceName)
+      if (!appStillExists) {
+        const oldAppPath = path.join(oldStatePath, appName)
         const shell = new ShellUtil()
-        await shell.cd(oldServicePath)
+        await shell.cd(oldAppPath)
         await shell.$('docker', 'compose', 'down')
       }
     }),
   )
 }
 
-async function bringUpNewAndChangedServices() {
-  const newServices = await fs.readdir(newStatePath)
+async function bringUpNewAndChangedApps() {
+  const newApps = await fs.readdir(newStatePath)
 
   const results = await Promise.allSettled(
-    newServices.map(async (serviceName) => {
-      const servicePath = path.join(newStatePath, serviceName)
+    newApps.map(async (appName) => {
+      const appPath = path.join(newStatePath, appName)
       const shell = new ShellUtil()
-      await shell.cd(servicePath)
+      await shell.cd(appPath)
       await shell.$('docker', 'compose', 'pull')
       await shell.$('docker', 'compose', 'up', '-d')
     }),
@@ -143,10 +135,10 @@ async function bringUpNewAndChangedServices() {
   for (const result of results) {
     if (result.status === 'rejected') {
       if (result.reason instanceof Error) {
-        console.error(`Failed to bring service up: ${result.reason.message}`)
+        console.error(`Failed to bring app up: ${result.reason.message}`)
         debug.enabled && console.error(result.reason)
       } else {
-        console.error(`Failed to bring service up: ${result.reason}`)
+        console.error(`Failed to bring app up: ${result.reason}`)
       }
     }
   }
@@ -163,8 +155,8 @@ async function finalizeState() {
 
 async function main() {
   await generateState()
-  await bringUpNewAndChangedServices()
-  await teardownDeletedServices()
+  await bringUpNewAndChangedApps()
+  await teardownDeletedApps()
   await finalizeState()
 }
 
