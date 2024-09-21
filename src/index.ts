@@ -20,7 +20,8 @@ async function generateState() {
         .digest('hex')
         .slice(0, 8)
 
-      const repoPath = path.resolve(repoId)
+      const repoContainerPath = path.resolve('sources')
+      const repoPath = path.join(repoContainerPath, repoId)
 
       const shell = new ShellUtil()
 
@@ -34,6 +35,14 @@ async function generateState() {
       if (alreadyCloned) {
         await shell.$('git', 'fetch')
         await shell.$('git', 'reset', '--hard', 'origin/main')
+      }
+
+      try {
+        // If there are no dependencies, this will fail, but that's fine
+        await shell.$('bun', 'install', '--production')
+        debug(`Installed dependencies for ${sourceRepo}`)
+      } catch (err) {
+        debug(`Failed to install dependencies for ${sourceRepo}: ${err}`)
       }
 
       try {
