@@ -12,6 +12,25 @@ const oldStatePath = path.resolve('state.old')
 const newStatePath = path.resolve('state.new')
 const finalStatePath = path.resolve('state')
 
+async function resetState() {
+  try {
+    // If there's already a state.old (from a previous failed run or something), delete it
+    await fs.rm(oldStatePath, { recursive: true })
+  } catch {}
+
+  try {
+    // If there's a current state, move it to state.old
+    await fs.rename(finalStatePath, oldStatePath)
+  } catch {}
+
+  try {
+    // If we already have a state.new (from a previous failed run or something), delete it
+    await fs.rm(newStatePath, { recursive: true })
+  } catch {}
+
+  await fs.mkdir(newStatePath)
+}
+
 async function generateState() {
   const results = await Promise.allSettled(
     Env.SOURCE_REPOS.map(async (sourceRepo) => {
@@ -45,23 +64,6 @@ async function generateState() {
         debug(`Failed to install dependencies for ${sourceRepo}: ${err}`)
       }
 
-      try {
-        // If there's already a state.old (from a previous failed run or something), delete it
-        await fs.rm(oldStatePath, { recursive: true })
-      } catch {}
-
-      try {
-        // If there's a current state, move it to state.old
-        await fs.rename(finalStatePath, oldStatePath)
-      } catch {}
-
-      try {
-        // If we already have a state.new (from a previous failed run or something), delete it
-        await fs.rm(newStatePath, { recursive: true })
-      } catch {}
-
-      await fs.mkdir(newStatePath)
-
       const appsPath = path.join(repoPath, 'src', 'apps')
 
       if (!(await fs.exists(appsPath))) {
@@ -75,6 +77,8 @@ async function generateState() {
       await Promise.all(
         appFiles.map(async (filename) => {
           const appId = filename.slice(0, -'.ts'.length)
+
+          debug(`Processing app ${appId} from ${sourceRepo}`)
 
           const { state } = await import(path.join(appsPath, filename))
 
@@ -164,6 +168,7 @@ async function finalizeState() {
 }
 
 async function main() {
+  await resetState()
   await generateState()
   await bringUpNewAndChangedApps()
   await teardownDeletedApps()
