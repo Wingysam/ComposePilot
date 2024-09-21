@@ -123,6 +123,7 @@ async function teardownDeletedApps() {
         const shell = new ShellUtil()
         await shell.cd(oldAppPath)
         await shell.$('docker', 'compose', 'down')
+        console.log(`Tore down ${appName}`)
       }
     }),
   )
@@ -138,6 +139,7 @@ async function bringUpNewAndChangedApps() {
       await shell.cd(appPath)
       await shell.$('docker', 'compose', 'pull')
       await shell.$('docker', 'compose', 'up', '-d')
+      console.log(`Brought up ${appName}`)
     }),
   )
   for (const result of results) {
