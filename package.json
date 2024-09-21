@@ -1,0 +1,26 @@
+{
+  "name": "composepilot",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "run": "bun run src/index.ts",
+    "build": "bash build.sh",
+    "update-compose-spec": "curl -s https://raw.githubusercontent.com/compose-spec/compose-spec/refs/heads/main/schema/compose-spec.json | json2ts > compose-spec.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/debug": "^4.1.12",
+    "@types/lodash": "^4.17.7",
+    "prettier": "3.3.3"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "debug": "^4.3.7",
+    "json-schema-to-typescript": "^15.0.2",
+    "lodash": "^4.17.21",
+    "zod": "^3.23.8",
+    "zod-validation-error": "^3.4.0"
+  }
+}
