@@ -76,7 +76,7 @@ async function generateState() {
         appFiles.map(async (filename) => {
           const appId = filename.slice(0, -'.ts'.length)
 
-          const { app: state } = await import(path.join(appsPath, filename))
+          const { state } = await import(path.join(appsPath, filename))
 
           const newAppPath = path.join(newStatePath, `${appId}-${repoId}`)
           await fs.mkdir(newAppPath)
