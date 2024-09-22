@@ -1,3 +1,5 @@
+import type { SpawnOptions } from 'bun'
+
 export class ShellUtil {
   private cwd: string
 
@@ -5,7 +7,7 @@ export class ShellUtil {
     this.cwd = process.cwd()
   }
 
-  async $(...command: string[]) {
+  $(...command: string[]) {
     return new Promise<string>((resolve, reject) => {
       Bun.spawn(command, {
         cwd: this.cwd,
@@ -19,6 +21,25 @@ export class ShellUtil {
             )
           }
         },
+      })
+    })
+  }
+
+  spawn(command: string[], options: SpawnOptions.OptionsObject) {
+    return new Promise<string>((resolve, reject) => {
+      Bun.spawn(command, {
+        cwd: this.cwd,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        onExit: async (proc, exitCode) => {
+          if (exitCode === 0) {
+            resolve(await this.readableStreamToString(proc.stdout as any))
+          } else {
+            reject(
+              new Error(await this.readableStreamToString(proc.stderr as any)),
+            )
+          }
+        },
+        ...options,
       })
     })
   }

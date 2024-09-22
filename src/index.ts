@@ -56,12 +56,25 @@ async function generateState() {
         await shell.$('git', 'reset', '--hard', 'origin/main')
       }
 
-      try {
-        // If there are no dependencies, this will fail, but that's fine
-        await shell.$('bun', 'install', '--production')
-        debug(`Installed dependencies for ${sourceRepo}`)
-      } catch (err) {
-        debug(`Failed to install dependencies for ${sourceRepo}: ${err}`)
+      const packageJsonPath = path.join(repoPath, 'package.json')
+      if (await fs.exists(packageJsonPath)) {
+        try {
+          await shell.spawn(['bun', 'install', '--production'], {
+            // This is a horrible hack. We're calling ComposePilot but with 'bun' as cmd[0].
+            // Since ComposePilot is compiled with `bun --compile`, the ComposePilot binary is actually the bun binary with some data embedded.
+            // This could change in the future, like the Bun maintainers could remove non-essential parts of the Bun toolchain from compiled binaries.
+            // This allows us to use `bun install` without actually having Bun installed on the system.
+            //
+            // "technically its possible but it's very sneaky and we might not make this particular way of doing that possible in the future"
+            // - Jarred, https://discord.com/channels/876711213126520882/876711213126520885/1287178897804230686
+            argv0: process.execPath,
+          })
+          debug(`Installed dependencies for ${sourceRepo}`)
+        } catch (err) {
+          throw new Error(
+            `Failed to install dependencies for ${sourceRepo}: ${err}`,
+          )
+        }
       }
 
       const appsPath = path.join(repoPath, 'src', 'apps')
