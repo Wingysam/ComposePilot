@@ -104,9 +104,6 @@ async function generateState() {
       }
     }
   }
-  if (!allSuccess) {
-    process.exit(1)
-  }
 }
 
 async function teardownDeletedApps() {
